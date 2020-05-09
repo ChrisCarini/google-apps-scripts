@@ -7,6 +7,9 @@
  * Allows the use of Gmail filters to automatically take action (archive / delete) on emails at regular intervals.
  *
  */
+const scriptProperties = PropertiesService.getScriptProperties();
+const PERSONAL_EMAIL = scriptProperties.getProperty('PERSONAL_EMAIL');
+
 const MAIN_LABEL = "Automatic";
 const DELETE_NESTED_LABEL = "Delete";
 const ARCHIVE_NESTED_LABEL = "Archive";
@@ -130,21 +133,33 @@ function GetAndProcessEmails() {
         }
     }
 
+    let mailSummaryItems = [];
+
     Logger.log(`Processing ${archiveRules.length} archive rules...`);
     processRules(archiveRules, function (thread) {
         const message = thread.getMessages()[0];
-        Logger.log("ARCHIVE thread [subject:(" + message.getSubject() + ") - from:" + message.getFrom() + "].");
+        Logger.log("ARCHIVE thread [subject:(" + message.getSubject() + ") - from:(" + message.getFrom() + ")]");
         processedLabel.addToThread(thread);
         GmailApp.moveThreadToArchive(thread);
         Logger.log(`Added ${processedLabel.getName()} to thread and archived.`);
+        mailSummaryItems.push(`<b><i>ARCHIVED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
     });
 
     Logger.log(`Processing ${deleteRules.length} delete rules...`);
     processRules(deleteRules, function (thread) {
         const message = thread.getMessages()[0];
-        Logger.log("TRASH thread [subject:(" + message.getSubject() + ") - from:" + message.getFrom() + "].");
+        Logger.log("TRASH thread [subject:(" + message.getSubject() + ") - from:(" + message.getFrom() + ")]");
         processedLabel.addToThread(thread);
         thread.moveToTrash();
         Logger.log(`Added ${processedLabel.getName()} to thread and deleted.`);
+        mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
+    });
+
+    // Send report of what we did
+    MailApp.sendEmail({
+        to: PERSONAL_EMAIL,
+        subject: `[Auto Gmail Actions] Action Report - Report for ${new Date()}`,
+        htmlBody: `<h3>Automatic Gmail Actions - Report for ${new Date()}</h3>` + "<ul><li>" + `${mailSummaryItems.join(
+            "</li><li>")}` + "</li></ul>",
     });
 }
