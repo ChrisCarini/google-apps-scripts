@@ -155,11 +155,13 @@ function GetAndProcessEmails() {
         mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
     });
 
-    // Send report of what we did
-    MailApp.sendEmail({
-        to: PERSONAL_EMAIL,
-        subject: `[Auto Gmail Actions] Action Report - Report for ${new Date()}`,
-        htmlBody: `<h3>Automatic Gmail Actions - Report for ${new Date()}</h3>` + "<ul><li>" + `${mailSummaryItems.join(
-            "</li><li>")}` + "</li></ul>",
-    });
+    // Send report of what we did, only if there was stuff done.
+    if(mailSummaryItems.length >0) {
+        MailApp.sendEmail({
+            to: PERSONAL_EMAIL,
+            subject: `[Auto Gmail Actions] Action Report - Report for ${new Date()}`,
+            htmlBody: `<h3>Automatic Gmail Actions - Report for ${new Date()}</h3>` + "<ul><li>" + `${mailSummaryItems.join(
+                "</li><li>")}` + "</li></ul>",
+        });
+    }
 }
