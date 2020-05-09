@@ -31,4 +31,5 @@ fi
 
 $CLASP_BIN pull
 
+# ./node_modules/.bin/clasp push --watch --force
 $CLASP_BIN push --watch --force
