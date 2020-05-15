@@ -16,6 +16,7 @@ const ARCHIVE_NESTED_LABEL = "Archive";
 const PROCESSED_LABEL = MAIN_LABEL + "/Processed";
 const NOW = "NOW";
 const GMAIL_SEARCH_PAGE_SIZE = 100;
+const REPORT_TAG = "[Auto Gmail Actions]";
 
 function getEmailThreads(searchQuery, index) {
     // Search in pages of GMAIL_SEARCH_PAGE_SIZE
@@ -152,14 +153,16 @@ function GetAndProcessEmails() {
         processedLabel.addToThread(thread);
         thread.moveToTrash();
         Logger.log(`Added ${processedLabel.getName()} to thread and deleted.`);
-        mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
+        if(!message.getSubject().startsWith(REPORT_TAG)) {
+          mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
+        }
     });
 
     // Send report of what we did, only if there was stuff done.
     if(mailSummaryItems.length >0) {
         MailApp.sendEmail({
             to: PERSONAL_EMAIL,
-            subject: `[Auto Gmail Actions] Action Report - Report for ${new Date()}`,
+            subject: `${REPORT_TAG} Action Report - Report for ${new Date()}`,
             htmlBody: `<h3>Automatic Gmail Actions - Report for ${new Date()}</h3>` + "<ul><li>" + `${mailSummaryItems.join(
                 "</li><li>")}` + "</li></ul>",
         });
