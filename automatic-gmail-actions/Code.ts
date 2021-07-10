@@ -141,6 +141,10 @@ function GetAndProcessEmails() {
         const message = thread.getMessages()[0];
         Logger.log("ARCHIVE thread [subject:(" + message.getSubject() + ") - from:(" + message.getFrom() + ")]");
         processedLabel.addToThread(thread);
+        // // Since we are archiving the thread, we intentionally do not want to mark the thread read.
+        // // "Why?", you might ask? Well, having unread messages in the 'archived' label makes it easier
+        // // to identify which messages one *has* read vs *has not* read. Thus, we keep this commented out.
+        // GmailApp.markThreadRead(thread);
         GmailApp.moveThreadToArchive(thread);
         Logger.log(`Added ${processedLabel.getName()} to thread and archived.`);
         mailSummaryItems.push(`<b><i>ARCHIVED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
