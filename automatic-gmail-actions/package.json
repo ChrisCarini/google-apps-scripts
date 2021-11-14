@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@google/clasp": "^2.4.1",
-    "@types/google-apps-script": "^1.0.12"
+    "@types/google-apps-script": "^1.0.39"
   },
   "devDependencies": {},
   "scripts": {
