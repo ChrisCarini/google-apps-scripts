@@ -157,13 +157,13 @@ function GetAndProcessEmails() {
         processedLabel.addToThread(thread);
         thread.moveToTrash();
         Logger.log(`Added ${processedLabel.getName()} to thread and deleted.`);
-        if(!message.getSubject().startsWith(REPORT_TAG)) {
-          mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
+        if (!message.getSubject().startsWith(REPORT_TAG)) {
+            mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
         }
     });
 
     // Send report of what we did, only if there was stuff done.
-    if(mailSummaryItems.length >0) {
+    if (mailSummaryItems.length > 0) {
         MailApp.sendEmail({
             to: PERSONAL_EMAIL,
             subject: `${REPORT_TAG} Action Report - Report for ${new Date()}`,
