@@ -46,6 +46,14 @@ function isLabelSubLabelOf(searchLabel: string, baseLabel: string) {
 }
 
 /**
+ * Checks if the provided string is parse-able by `Date.parse()`
+ * @param str The input string to check
+ */
+function isDateParsable(str) {
+    return !isNaN(Date.parse(str))
+}
+
+/**
  * Converts a label into a Gmail time period (ie, 5d, 13w); if the label ends in `/NOW` we will return `0d`
  * @param label The label to convert
  */
@@ -62,6 +70,12 @@ function convertLabelToTimePeriod(label) {
         return "0d";
     }
 
+    // If we have a `YYYY-MM-DD` formatted string, return that.
+    if (isDateParsable(timePeriod)) {
+        Logger.log("String is Date parse-able: " + timePeriod);
+        return timePeriod;
+    }
+
     // '4 Days' -> ['4','Days']
     const splitTimePeriod = timePeriod.split(" ");
     Logger.log("splitTimePeriod: " + splitTimePeriod);
@@ -74,30 +88,66 @@ function convertLabelToTimePeriod(label) {
  * @param rule The rule for which to get the query; expects an object with `labelName` and `timePeriod` properties.
  */
 function getQueryFromActionRule(rule) {
-    return "(label:" + rule.labelName + " AND older_than:" + rule.timePeriod + ")";
+    // If the time period is not a parseable date, we assume it is a time duration (ie, it is `4d` or `1m` or similar),
+    // and we can create a query filter, and return it immediately.
+    if (!isDateParsable(rule.timePeriod)) {
+        return {query: "(label:" + rule.labelName + " AND older_than:" + rule.timePeriod + ")", cleanupLabel: null};
+    }
+
+    // Otherwise, the time period might be a specific date
+    const ruleTime = new Date(Date.parse(rule.timePeriod));
+    // Add one to the date (JS will handle incrementing the month/year, if needed)
+    // as we want the email action to be taken one day past the date specified.
+    // That is, if we label an email `Automatic/Delete/2021-11-15` we would expect
+    // that the day **after** 2021-11-15 the email would be deleted.
+    ruleTime.setDate(ruleTime.getDate() + 1);
+
+    // If the specified time has passed, we have a label to process & cleanup. Otherwise, do nothing.
+    if (ruleTime.getTime() <= new Date().getTime()) {
+        return {query: "(label:" + rule.labelName + ")", cleanupLabel: rule.labelName};
+    } else {
+        return {query: null, cleanupLabel: null};
+    }
 }
 
 /**
  * Process the given rules.
  * @param rules A list of objects representing rules.
- * @param callback The callback method that will be called on each thread that matches the provided rules.
+ * @param processThreadCallback The callback method that will be called on each thread that matches the provided rules.
+ * @param cleanupLabelsCallback The callback method that will be used to clean up any needed labels.
  */
-function processRules(rules, callback) {
+function processRules(rules, processThreadCallback, cleanupLabelsCallback) {
     if (rules.length == 0) {
         return;
     }
     let searchQueryPieces = [];
+    let cleanupLabels = [];
     for (let i = 0; i < rules.length; i++) {
-        searchQueryPieces.push(getQueryFromActionRule(rules[i]));
+        let result = getQueryFromActionRule(rules[i]);
+        if (result.query) {
+            searchQueryPieces.push(result.query);
+        }
+        if (result.cleanupLabel) {
+            cleanupLabels.push(result.cleanupLabel);
+        }
     }
-    // (NOT label:Automatic/Processed) AND ((label:Automatic/Archive/4 Days AND older_than:4d) OR (label:Automatic/Archive/1 Month AND older_than:1m))
+    // (NOT label:Automatic/Processed) AND
+    // (
+    //      (label:Automatic/Archive/4 Days AND older_than:4d) OR
+    //      (label:Automatic/Archive/1 Month AND older_than:1m) OR
+    //      (label:Automatic/Archive/2021-11-14)
+    // )
     const fullSearchQuery = "(NOT label:" + PROCESSED_LABEL + ") AND (" + searchQueryPieces.join(" OR ") + ")";
     Logger.log("Performing search: [" + fullSearchQuery + "]");
     // Get the email threads
     const threads = getEmailThreads(fullSearchQuery, 0);
-    Logger.log(threads.length + " threads found.");
+    Logger.log(threads.length + " thread(s) found.");
     for (let i = 0; i < threads.length; i++) {
-        callback(threads[i]);
+        processThreadCallback(threads[i]);
+    }
+    Logger.log(`Cleanup ${cleanupLabels.length} old label(s).`);
+    for (let i = 0; i < cleanupLabels.length; i++) {
+        cleanupLabelsCallback(cleanupLabels[i]);
     }
 }
 
@@ -148,6 +198,8 @@ function GetAndProcessEmails() {
         GmailApp.moveThreadToArchive(thread);
         Logger.log(`Added ${processedLabel.getName()} to thread and archived.`);
         mailSummaryItems.push(`<b><i>ARCHIVED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
+    }, function (cleanupLabel) {
+        mailSummaryItems.push(`<b><i>UNTOUCHED LABEL</i></b>: ${cleanupLabel}`);
     });
 
     Logger.log(`Processing ${deleteRules.length} delete rules...`);
@@ -160,6 +212,9 @@ function GetAndProcessEmails() {
         if (!message.getSubject().startsWith(REPORT_TAG)) {
             mailSummaryItems.push(`<b><i>DELETED</i></b>: subject:(${message.getSubject()}) - from:(${message.getFrom()})`);
         }
+    }, function (labelToDelete) {
+        GmailApp.getUserLabelByName(labelToDelete).deleteLabel();
+        mailSummaryItems.push(`<b><i>DELETE LABEL</i></b>: ${labelToDelete}`);
     });
 
     // Send report of what we did, only if there was stuff done.
