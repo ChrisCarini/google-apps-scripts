@@ -26,7 +26,7 @@ fi
 # Check if we've already authenticated to Google for `clasp` usage.
 if [[ ! -f $CLASP_RC ]]; then
   echo -e "$CLASP_RC does not exist...\nRunning 'clasp login'..."
-#  $CLASP_BIN login
+  $CLASP_BIN login
 fi
 
 $CLASP_BIN pull
