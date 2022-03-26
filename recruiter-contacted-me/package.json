@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "@google/clasp": "^2.3.0",
-    "@types/google-apps-script": "^1.0.12"
+    "@google/clasp": "^2.4.1",
+    "@types/google-apps-script": "^1.0.45"
   },
   "devDependencies": {},
   "scripts": {
